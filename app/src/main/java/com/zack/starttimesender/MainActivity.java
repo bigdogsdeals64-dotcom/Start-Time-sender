@@ -6,6 +6,7 @@ import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
+import android.text.InputType;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
@@ -13,7 +14,7 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
-import android.text.InputType;
+import android.widget.Toast;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -36,19 +37,22 @@ public class MainActivity extends Activity {
     private EditText startTimeBox;
     private EditText noteBox;
     private TextView sentBadge;
-    private LinearLayout rowOneList;
-    private LinearLayout rowTwoList;
+    private LinearLayout unloadList;
+    private LinearLayout spaList;
+    private LinearLayout clerkList;
+    private LinearLayout preloadList;
     private final List<Person> people = new ArrayList<>();
 
     static class Person {
         String name;
         String phone;
-        int row;
+        int section;
         boolean sent;
-        Person(String name, String phone, int row, boolean sent) {
+
+        Person(String name, String phone, int section, boolean sent) {
             this.name = name;
             this.phone = phone;
-            this.row = row;
+            this.section = section;
             this.sent = sent;
         }
     }
@@ -63,6 +67,7 @@ public class MainActivity extends Activity {
     private void buildScreen() {
         ScrollView scroll = new ScrollView(this);
         scroll.setBackgroundColor(BG);
+
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(dp(14), dp(14), dp(14), dp(26));
@@ -71,12 +76,14 @@ public class MainActivity extends Activity {
         LinearLayout header = new LinearLayout(this);
         header.setOrientation(LinearLayout.HORIZONTAL);
         header.setGravity(Gravity.CENTER_VERTICAL);
+
         TextView title = new TextView(this);
         title.setText("Start Time Sender");
         title.setTextColor(TEXT);
         title.setTextSize(26);
         title.setTypeface(null, 1);
         header.addView(title, new LinearLayout.LayoutParams(0, -2, 1));
+
         sentBadge = new TextView(this);
         sentBadge.setTextColor(ACCENT);
         sentBadge.setTextSize(14);
@@ -85,16 +92,15 @@ public class MainActivity extends Activity {
         root.addView(header);
 
         TextView subtitle = new TextView(this);
-        subtitle.setText("Build tomorrow's start-time message, send each text, and track who is complete.");
+        subtitle.setText("Save your people, build tomorrow's start-time text, and track who is complete.");
         subtitle.setTextColor(MUTED);
         subtitle.setPadding(0, dp(4), 0, dp(12));
         root.addView(subtitle);
 
-        LinearLayout card = card();
-        TextView label = label("CUSTOM MESSAGE");
-        card.addView(label);
+        LinearLayout messageCard = card();
+        messageCard.addView(label("CUSTOM MESSAGE"));
         messageBox = editText("Hey guys, great job today. Tomorrow ST is 4:30 AM. Please be on time.", true);
-        card.addView(messageBox);
+        messageCard.addView(messageBox);
 
         LinearLayout messageInputs = new LinearLayout(this);
         messageInputs.setOrientation(LinearLayout.HORIZONTAL);
@@ -103,7 +109,7 @@ public class MainActivity extends Activity {
         noteBox = editText("Great job today", false);
         messageInputs.addView(startTimeBox, new LinearLayout.LayoutParams(0, -2, 1));
         messageInputs.addView(noteBox, new LinearLayout.LayoutParams(0, -2, 1));
-        card.addView(messageInputs);
+        messageCard.addView(messageInputs);
 
         LinearLayout quick = new LinearLayout(this);
         quick.setOrientation(LinearLayout.HORIZONTAL);
@@ -112,57 +118,91 @@ public class MainActivity extends Activity {
         addQuickTime(quick, "4:50 AM");
         addQuickTime(quick, "5:00 AM");
         addQuickTime(quick, "5:15 AM");
-        card.addView(quick);
+        messageCard.addView(quick);
 
         LinearLayout toolRow = new LinearLayout(this);
         toolRow.setOrientation(LinearLayout.HORIZONTAL);
         toolRow.setPadding(0, dp(8), 0, 0);
-        Button build = button("Build Message", ACCENT, Color.rgb(27,17,11));
+
+        Button build = button("Build Message", ACCENT, Color.rgb(27, 17, 11));
         build.setOnClickListener(v -> buildMessage());
-        Button copy = button("Copy", Color.rgb(58,42,33), TEXT);
+
+        Button copy = button("Copy", Color.rgb(58, 42, 33), TEXT);
         copy.setOnClickListener(v -> {
-            android.content.ClipboardManager cm = (android.content.ClipboardManager)getSystemService(CLIPBOARD_SERVICE);
+            saveCurrentInputs();
+            android.content.ClipboardManager cm = (android.content.ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
             cm.setPrimaryClip(android.content.ClipData.newPlainText("Start Time", messageBox.getText().toString()));
-            saveData();
+            Toast.makeText(this, "Message copied.", Toast.LENGTH_SHORT).show();
         });
+
         toolRow.addView(build, new LinearLayout.LayoutParams(0, dp(48), 1));
         toolRow.addView(copy, new LinearLayout.LayoutParams(0, dp(48), 1));
-        card.addView(toolRow);
-        root.addView(card);
+        messageCard.addView(toolRow);
+        root.addView(messageCard);
 
-        LinearLayout rowOneCard = card();
-        rowOneCard.addView(sectionTitle("Row 1"));
-        rowOneList = new LinearLayout(this);
-        rowOneList.setOrientation(LinearLayout.VERTICAL);
-        rowOneCard.addView(rowOneList);
-        Button add1 = button("+ Add Person", Color.rgb(58,42,33), TEXT);
-        add1.setOnClickListener(v -> { people.add(new Person("", "", 1, false)); saveData(); renderPeople(); });
-        rowOneCard.addView(add1);
-        root.addView(rowOneCard);
-
-        LinearLayout rowTwoCard = card();
-        rowTwoCard.addView(sectionTitle("Row 2"));
-        rowTwoList = new LinearLayout(this);
-        rowTwoList.setOrientation(LinearLayout.VERTICAL);
-        rowTwoCard.addView(rowTwoList);
-        Button add2 = button("+ Add Person", Color.rgb(58,42,33), TEXT);
-        add2.setOnClickListener(v -> { people.add(new Person("", "", 2, false)); saveData(); renderPeople(); });
-        rowTwoCard.addView(add2);
-        root.addView(rowTwoCard);
+        root.addView(sectionCard("Unload", 1));
+        root.addView(sectionCard("SPA", 2));
+        root.addView(sectionCard("Clerk", 3));
+        root.addView(sectionCard("Preload", 4));
 
         LinearLayout bottom = new LinearLayout(this);
         bottom.setOrientation(LinearLayout.HORIZONTAL);
         bottom.setPadding(0, dp(4), 0, 0);
-        Button reset = button("Reset Checks", Color.rgb(90,36,36), Color.rgb(255,220,220));
-        reset.setOnClickListener(v -> { for (Person p : people) p.sent = false; saveData(); renderPeople(); });
-        Button sendAll = button("Send All List", Color.rgb(23,53,31), Color.rgb(210,255,220));
+
+        Button reset = button("Reset Checks", Color.rgb(90, 36, 36), Color.rgb(255, 220, 220));
+        reset.setOnClickListener(v -> {
+            for (Person p : people) p.sent = false;
+            saveCurrentInputs();
+            renderPeople();
+            Toast.makeText(this, "Checks reset.", Toast.LENGTH_SHORT).show();
+        });
+
+        Button save = button("Save Settings", ACCENT, Color.rgb(27, 17, 11));
+        save.setOnClickListener(v -> {
+            saveCurrentInputs();
+            Toast.makeText(this, "Names and numbers saved.", Toast.LENGTH_SHORT).show();
+        });
+
+        Button sendAll = button("Send All", Color.rgb(23, 53, 31), Color.rgb(210, 255, 220));
         sendAll.setOnClickListener(v -> sendAll());
+
         bottom.addView(reset, new LinearLayout.LayoutParams(0, dp(52), 1));
+        bottom.addView(save, new LinearLayout.LayoutParams(0, dp(52), 1));
         bottom.addView(sendAll, new LinearLayout.LayoutParams(0, dp(52), 1));
         root.addView(bottom);
 
         setContentView(scroll);
+
+        SharedPreferences boxPrefs = getPreferences(MODE_PRIVATE);
+        messageBox.setText(boxPrefs.getString("message", messageBox.getHint().toString()));
+        startTimeBox.setText(boxPrefs.getString("startTime", "4:30 AM"));
+        noteBox.setText(boxPrefs.getString("note", "Great job today"));
+
         renderPeople();
+    }
+
+    private LinearLayout sectionCard(String title, int section) {
+        LinearLayout sectionCard = card();
+        sectionCard.addView(sectionTitle(title));
+        LinearLayout list = new LinearLayout(this);
+        list.setOrientation(LinearLayout.VERTICAL);
+
+        if (section == 1) unloadList = list;
+        if (section == 2) spaList = list;
+        if (section == 3) clerkList = list;
+        if (section == 4) preloadList = list;
+
+        sectionCard.addView(list);
+
+        Button add = button("+ Add Person", Color.rgb(58, 42, 33), TEXT);
+        add.setOnClickListener(v -> {
+            saveCurrentInputs();
+            people.add(new Person("", "", section, false));
+            renderPeople();
+        });
+        sectionCard.addView(add);
+
+        return sectionCard;
     }
 
     private LinearLayout card() {
@@ -223,18 +263,29 @@ public class MainActivity extends Activity {
     }
 
     private void addQuickTime(LinearLayout row, String time) {
-        Button b = button(time.replace(" AM", ""), Color.rgb(58,42,33), TEXT);
-        b.setOnClickListener(v -> { startTimeBox.setText(time); buildMessage(); });
+        Button b = button(time.replace(" AM", ""), Color.rgb(58, 42, 33), TEXT);
+        b.setOnClickListener(v -> {
+            startTimeBox.setText(time);
+            buildMessage();
+        });
         row.addView(b, new LinearLayout.LayoutParams(0, dp(44), 1));
     }
 
     private void renderPeople() {
-        rowOneList.removeAllViews();
-        rowTwoList.removeAllViews();
+        unloadList.removeAllViews();
+        spaList.removeAllViews();
+        clerkList.removeAllViews();
+        preloadList.removeAllViews();
+
         for (Person p : people) {
             View personView = personView(p);
-            if (p.row == 2) rowTwoList.addView(personView); else rowOneList.addView(personView);
+            if (p.section == 1) unloadList.addView(personView);
+            else if (p.section == 2) spaList.addView(personView);
+            else if (p.section == 3) clerkList.addView(personView);
+            else preloadList.addView(personView);
         }
+
+        saveDataOnly();
         updateBadge();
     }
 
@@ -245,60 +296,94 @@ public class MainActivity extends Activity {
 
         LinearLayout top = new LinearLayout(this);
         top.setOrientation(LinearLayout.HORIZONTAL);
+
         EditText name = editText("Name", false);
         name.setText(p.name);
+
         EditText phone = editText("Phone", false);
         phone.setText(p.phone);
         phone.setInputType(InputType.TYPE_CLASS_PHONE);
+
         top.addView(name, new LinearLayout.LayoutParams(0, -2, 1));
         top.addView(phone, new LinearLayout.LayoutParams(0, -2, 1));
         box.addView(top);
 
         LinearLayout actions = new LinearLayout(this);
         actions.setOrientation(LinearLayout.HORIZONTAL);
-        Button send = button("Send", Color.rgb(31,59,36), Color.rgb(217,255,226));
+
+        Button send = button("Send", Color.rgb(31, 59, 36), Color.rgb(217, 255, 226));
+
         TextView check = new TextView(this);
         check.setText(p.sent ? "✓" : "");
         check.setTextColor(p.sent ? GREEN : MUTED);
         check.setTextSize(26);
         check.setGravity(Gravity.CENTER);
         check.setTypeface(null, 1);
-        Button remove = button("×", Color.rgb(58,42,33), TEXT);
+
+        Button remove = button("×", Color.rgb(58, 42, 33), TEXT);
+
         actions.addView(send, new LinearLayout.LayoutParams(0, dp(48), 1));
         actions.addView(check, new LinearLayout.LayoutParams(dp(52), dp(48)));
         actions.addView(remove, new LinearLayout.LayoutParams(dp(52), dp(48)));
         box.addView(actions);
 
-        name.setOnFocusChangeListener((v, hasFocus) -> { if (!hasFocus) { p.name = name.getText().toString(); saveData(); } });
-        phone.setOnFocusChangeListener((v, hasFocus) -> { if (!hasFocus) { p.phone = phone.getText().toString(); saveData(); } });
+        name.setOnFocusChangeListener((v, hasFocus) -> {
+            if (!hasFocus) {
+                p.name = name.getText().toString();
+                saveDataOnly();
+            }
+        });
+
+        phone.setOnFocusChangeListener((v, hasFocus) -> {
+            if (!hasFocus) {
+                p.phone = phone.getText().toString();
+                saveDataOnly();
+            }
+        });
+
         send.setOnClickListener(v -> {
             p.name = name.getText().toString();
             p.phone = phone.getText().toString();
             sendPerson(p);
         });
-        remove.setOnClickListener(v -> { people.remove(p); saveData(); renderPeople(); });
+
+        remove.setOnClickListener(v -> {
+            people.remove(p);
+            saveCurrentInputs();
+            renderPeople();
+        });
+
         return box;
     }
 
     private void buildMessage() {
         String st = startTimeBox.getText().toString().trim();
         if (st.isEmpty()) st = "4:30 AM";
+
         String note = noteBox.getText().toString().trim();
         String msg = note.isEmpty()
                 ? "Hey guys, tomorrow ST is " + st + ". Please be on time."
                 : "Hey guys, " + note + ". Tomorrow ST is " + st + ". Please be on time.";
+
         messageBox.setText(msg);
-        saveData();
+        saveCurrentInputs();
     }
 
     private void sendPerson(Person p) {
-        saveFromBoxes();
+        saveCurrentInputs();
+
         String phone = cleanPhone(p.phone);
         String message = messageBox.getText().toString();
-        if (phone.isEmpty() || message.trim().isEmpty()) return;
+
+        if (phone.isEmpty() || message.trim().isEmpty()) {
+            Toast.makeText(this, "Add a phone number and message first.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
         p.sent = true;
-        saveData();
+        saveCurrentInputs();
         renderPeople();
+
         Intent intent = new Intent(Intent.ACTION_SENDTO);
         intent.setData(Uri.parse("smsto:" + Uri.encode(phone)));
         intent.putExtra("sms_body", message);
@@ -306,7 +391,8 @@ public class MainActivity extends Activity {
     }
 
     private void sendAll() {
-        saveFromBoxes();
+        saveCurrentInputs();
+
         StringBuilder phones = new StringBuilder();
         for (Person p : people) {
             String phone = cleanPhone(p.phone);
@@ -316,9 +402,15 @@ public class MainActivity extends Activity {
                 p.sent = true;
             }
         }
-        saveData();
+
+        saveCurrentInputs();
         renderPeople();
-        if (phones.length() == 0 || messageBox.getText().toString().trim().isEmpty()) return;
+
+        if (phones.length() == 0 || messageBox.getText().toString().trim().isEmpty()) {
+            Toast.makeText(this, "Add phone numbers and a message first.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
         Intent intent = new Intent(Intent.ACTION_SENDTO);
         intent.setData(Uri.parse("smsto:" + Uri.encode(phones.toString())));
         intent.putExtra("sms_body", messageBox.getText().toString());
@@ -330,46 +422,59 @@ public class MainActivity extends Activity {
         return phone.replaceAll("[^0-9+]", "");
     }
 
-    private void saveFromBoxes() {
+    private void saveCurrentInputs() {
         getPreferences(MODE_PRIVATE).edit()
                 .putString("message", messageBox.getText().toString())
                 .putString("startTime", startTimeBox.getText().toString())
                 .putString("note", noteBox.getText().toString())
                 .apply();
+
+        saveDataOnly();
     }
 
     private void loadData() {
         SharedPreferences sp = getSharedPreferences(PREFS, MODE_PRIVATE);
         String raw = sp.getString(DATA_KEY, "");
+
         if (!raw.isEmpty()) {
             try {
                 JSONArray arr = new JSONArray(raw);
                 for (int i = 0; i < arr.length(); i++) {
                     JSONObject o = arr.getJSONObject(i);
-                    people.add(new Person(o.optString("name"), o.optString("phone"), o.optInt("row", 1), o.optBoolean("sent", false)));
+                    int section = o.has("section") ? o.optInt("section", 4) : o.optInt("row", 4);
+                    people.add(new Person(
+                            o.optString("name"),
+                            o.optString("phone"),
+                            section,
+                            o.optBoolean("sent", false)
+                    ));
                 }
                 return;
             } catch (Exception ignored) {}
         }
-        String[] row1 = {"Phillips","Ellis","May","Cory","Cavanaugh","Hershal","Maria","Bass","Jeremy","Sliger","Noah","Seiber","Samples","Sharkey","Capps","Moore"};
-        for (String n : row1) people.add(new Person(n, "", 1, false));
-        people.add(new Person("McPherson", "", 2, false));
-        people.add(new Person("Alisha", "", 2, false));
+
+        String[] preload = {"Phillips", "Ellis", "May", "Cory", "Cavanaugh", "Hershal", "Maria", "Bass", "Jeremy", "Sliger", "Noah", "Seiber", "Samples", "Sharkey", "Capps", "Moore"};
+        for (String n : preload) people.add(new Person(n, "", 4, false));
+
+        people.add(new Person("McPherson", "", 1, false));
+        people.add(new Person("Alisha", "", 1, false));
     }
 
-    private void saveData() {
-        saveFromBoxes();
+    private void saveDataOnly() {
         try {
             JSONArray arr = new JSONArray();
             for (Person p : people) {
                 JSONObject o = new JSONObject();
                 o.put("name", p.name);
                 o.put("phone", p.phone);
-                o.put("row", p.row);
+                o.put("section", p.section);
                 o.put("sent", p.sent);
                 arr.put(o);
             }
-            getSharedPreferences(PREFS, MODE_PRIVATE).edit().putString(DATA_KEY, arr.toString()).apply();
+
+            getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+                    .putString(DATA_KEY, arr.toString())
+                    .apply();
         } catch (Exception ignored) {}
     }
 
